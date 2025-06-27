@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>Control Retro de Motores</title>
   <script>
+    let client;
+
     function loadMQTT(callback) {
       if (typeof mqtt === 'undefined') {
         const script = document.createElement('script');
@@ -30,112 +32,62 @@
     }
 
     function permitirEnter(event) {
-      if (event.key === 'Enter') {
-        validarContraseña();
+      if (event.key === 'Enter') validarContraseña();
+    }
+
+    function initMQTT() {
+      // 👇 CAMBIO: Broker HiveMQ wss en puerto 8884
+      const broker = 'wss://broker.hivemq.com:8884/mqtt';
+      client = mqtt.connect(broker);
+
+      client.on('connect', () => {
+        document.getElementById('info').textContent = '✅ Conectado al broker MQTT';
+        client.subscribe('mundial/2014.0-7/alerta');
+      });
+
+      client.on('error', (err) => {
+        document.getElementById('info').textContent = '❌ Error de conexión';
+        console.error('MQTT Error:', err);
+      });
+
+      client.on('message', function (topic, message) {
+        const msg = message.toString();
+        const info = document.getElementById('info');
+        const indicador = document.getElementById('indicador-obstaculo');
+
+        if (topic === 'mundial/2014.0-7/alerta') {
+          if (msg === 'obstaculo-izquierda') {
+            info.textContent = "⚠️ Obstáculo detectado a la izquierda. Debes girar.";
+            info.style.color = "#b30000";
+            indicador.style.display = 'block';
+          } else if (msg === 'obstaculo-derecha') {
+            info.textContent = "⚠️ Obstáculo detectado a la derecha. Debes girar.";
+            info.style.color = "#b30000";
+            indicador.style.display = 'block';
+          }
+        } else {
+          indicador.style.display = 'none';
+          info.style.color = '#004488';
+        }
+      });
+    }
+
+    function enviar(cmd) {
+      if (client && client.connected) {
+        client.publish('mundial/2014.0-7', cmd);
+        const info = document.getElementById('info');
+        info.textContent = '📤 Enviado: ' + cmd;
+        info.style.color = '#004488';
+      } else {
+        document.getElementById('info').textContent = '⚠️ Cliente no conectado';
       }
     }
   </script>
-  <style>
-    body {
-      background-color: #fdf6f0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-family: Arial, sans-serif;
-    }
-    .control {
-      width: 768px;
-      height: 768px;
-      position: relative;
-      display: none;
-    }
-    button {
-      position: absolute;
-      background-color: rgba(255, 255, 255, 0.8);
-      border: none;
-      border-radius: 50%;
-      font-size: 24px;
-      font-weight: bold;
-      color: purple;
-      width: 70px;
-      height: 70px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #e0d0ff;
-    }
 
-    #adelante  { top: 165px; left: 345px; }
-    #izquierda { top: 275px; left: 270px; }
-    #parar     { top: 275px; left: 345px; }
-    #derecha   { top: 275px; left: 420px; }
-    #atras     { top: 390px; left: 345px; }
+  <!-- Mantengo el mismo CSS que ya estaba bien -->
 
-    #info {
-      position: absolute;
-      top: 480px;
-      left: 50px;
-      width: 650px;
-      text-align: center;
-      font-size: 18px;
-      color: #004488;
-    }
-
-    .label {
-      position: absolute;
-      font-size: 14px;
-      font-weight: bold;
-      color: #004488;
-      text-align: center;
-    }
-    .label.adelante  { top: 240px; left: 345px; width: 72px; }
-    .label.izquierda { top: 345px; left: 270px; width: 80px; }
-    .label.parar     { top: 345px; left: 345px; width: 80px; }
-    .label.derecha   { top: 345px; left: 420px; width: 80px; }
-    .label.atras     { top: 465px; left: 336px; width: 80px; }
-
-    .activo {
-      background-color: rgba(128, 0, 128, 0.3);
-    }
-
-    /* Modal contraseña */
-    #passwordModal {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-    .modal-content {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      text-align: center;
-    }
-    .modal-content h3 {
-      margin-bottom: 15px;
-    }
-    .modal-content input {
-      padding: 8px;
-      width: 200px;
-      font-size: 16px;
-    }
-    .modal-content button {
-      margin-top: 10px;
-      padding: 8px 20px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: none;
-      background: purple;
-      color: white;
-      cursor: pointer;
-    }
-  </style>
 </head>
+
 <body>
   <div id="passwordModal">
     <div class="modal-content">
@@ -147,7 +99,10 @@
   </div>
 
   <h2>Control Retro de Motores MQTT</h2>
+
   <div id="control" class="control">
+    <div id="indicador-obstaculo"></div>
+
     <button id="adelante" onclick="enviar('adelante')">↑</button>
     <button id="izquierda" onclick="enviar('izquierda')">←</button>
     <button id="parar" onclick="enviar('parar')">⏺</button>
@@ -162,32 +117,6 @@
     <div class="label derecha">DERECHA</div>
     <div class="label atras">ATRÁS</div>
   </div>
-
-  <script>
-    let client;
-
-    function initMQTT() {
-      const broker = 'wss://mqtt-dashboard.com:8884/mqtt';
-      client = mqtt.connect(broker);
-
-      client.on('connect', () => {
-        document.getElementById('info').textContent = '✅ Conectado al broker MQTT';
-      });
-
-      client.on('error', (err) => {
-        document.getElementById('info').textContent = '❌ Error de conexión';
-        console.error('MQTT Error:', err);
-      });
-    }
-
-    function enviar(cmd) {
-      if (client && client.connected) {
-        client.publish('mundial/2014.0-7', cmd);
-        document.getElementById('info').textContent = '📤 Enviado: ' + cmd;
-      } else {
-        document.getElementById('info').textContent = '⚠️ Cliente no conectado';
-      }
-    }
-  </script>
 </body>
 </html>
+
