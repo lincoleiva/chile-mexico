@@ -8,6 +8,8 @@
     const maxMessages = 3; // Máximo de 3 mensajes visibles
     let lastCommandTime = 0;
     const commandDelay = 200; // Retraso mínimo entre comandos (ms)
+    let activeCommand = null;
+    let commandInterval = null;
 
     function loadMQTT(callback) {
       if (typeof mqtt === 'undefined') {
@@ -78,7 +80,7 @@
         mostrarEstadoMQTT("conectado");
         client.subscribe('mundial/2014.0-7', {qos: 0}, (err) => {
           if (!err) {
-            enviar('ping'); // Test de conexión
+            enviar('parar'); // Iniciar en estado detenido
           }
         });
       });
@@ -104,6 +106,79 @@
         } else {
           indicador.style.display = 'none';
         }
+      });
+      
+      // Configurar eventos de botones después de que el control sea visible
+      setupButtonEvents();
+    }
+
+    function startCommand(cmd) {
+      if (activeCommand !== cmd) {
+        stopCommand();
+        activeCommand = cmd;
+        enviar(cmd); // Enviar comando inmediatamente
+        commandInterval = setInterval(() => {
+          enviar(cmd); // Enviar comando periódicamente mientras se mantenga presionado
+        }, commandDelay);
+      }
+    }
+
+    function stopCommand() {
+      if (activeCommand) {
+        clearInterval(commandInterval);
+        enviar('parar');
+        activeCommand = null;
+      }
+    }
+
+    function enviar(cmd) {
+      const now = Date.now();
+      if (now - lastCommandTime < commandDelay && cmd !== 'parar') {
+        return;
+      }
+      lastCommandTime = now;
+      
+      if (client && client.connected) {
+        client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
+        if (cmd !== 'parar') {
+          mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
+        }
+      } else {
+        mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
+      }
+    }
+
+    function setupButtonEvents() {
+      const buttons = {
+        'adelante': 'adelante',
+        'atras': 'atras',
+        'izquierda': 'izquierda',
+        'derecha': 'derecha'
+      };
+
+      for (const [id, cmd] of Object.entries(buttons)) {
+        const btn = document.getElementById(id);
+        
+        // Eventos para ratón
+        btn.addEventListener('mousedown', () => startCommand(cmd));
+        btn.addEventListener('mouseup', stopCommand);
+        btn.addEventListener('mouseleave', stopCommand);
+        
+        // Eventos para pantalla táctil
+        btn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          startCommand(cmd);
+        });
+        btn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          stopCommand();
+        });
+      }
+
+      // Botón de parar funciona con click
+      document.getElementById('parar').addEventListener('click', () => {
+        stopCommand();
+        enviar('parar');
       });
     }
 
@@ -151,21 +226,6 @@
             }, 500);
           }, 5000);
         }, 100);
-      }
-    }
-
-    function enviar(cmd) {
-      const now = Date.now();
-      if (now - lastCommandTime < commandDelay) {
-        return; // Ignorar comandos demasiado rápidos
-      }
-      lastCommandTime = now;
-      
-      if (client && client.connected) {
-        client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
-        mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
-      } else {
-        mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
       }
     }
   </script>
@@ -542,11 +602,11 @@
     <div id="indicador-obstaculo"></div>
     <div id="message-container"></div>
 
-    <button id="adelante" onclick="enviar('adelante')"><div class="balon adelante"></div></button>
-    <button id="izquierda" onclick="enviar('izquierda')"><div class="balon izquierda"></div></button>
-    <button id="parar" onclick="enviar('parar')"><div class="balon parar"></div></button>
-    <button id="derecha" onclick="enviar('derecha')"><div class="balon derecha"></div></button>
-    <button id="atras" onclick="enviar('atras')"><div class="balon atras"></div></button>
+    <button id="adelante" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
+    <button id="izquierda" onmousedown="startCommand('izquierda')" onmouseup="stopCommand()" ontouchstart="startCommand('izquierda')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
+    <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
+    <button id="derecha" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
+    <button id="atras" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon atras"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
