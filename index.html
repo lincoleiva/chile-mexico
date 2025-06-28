@@ -6,6 +6,8 @@
   <script>
     let client;
     const maxMessages = 3; // Máximo de 3 mensajes visibles
+    let lastCommandTime = 0;
+    const commandDelay = 200; // Retraso mínimo entre comandos (ms)
 
     function loadMQTT(callback) {
       if (typeof mqtt === 'undefined') {
@@ -62,11 +64,23 @@
 
     function initMQTT() {
       const broker = 'wss://mqtt-dashboard.com:8884/mqtt';
-      client = mqtt.connect(broker);
+      const options = {
+        keepalive: 10,
+        clean: true,
+        reconnectPeriod: 1000,
+        connectTimeout: 3000,
+        clientId: 'web-client-' + Math.random().toString(16).substr(2, 8),
+      };
+      
+      client = mqtt.connect(broker, options);
 
       client.on('connect', () => {
         mostrarEstadoMQTT("conectado");
-        client.subscribe('mundial/2014.0-7');
+        client.subscribe('mundial/2014.0-7', {qos: 0}, (err) => {
+          if (!err) {
+            enviar('ping'); // Test de conexión
+          }
+        });
       });
 
       client.on('error', (err) => {
@@ -141,8 +155,14 @@
     }
 
     function enviar(cmd) {
+      const now = Date.now();
+      if (now - lastCommandTime < commandDelay) {
+        return; // Ignorar comandos demasiado rápidos
+      }
+      lastCommandTime = now;
+      
       if (client && client.connected) {
-        client.publish('mundial/2014.0-7', 'comando:' + cmd);
+        client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
         mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
       } else {
         mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
@@ -535,3 +555,4 @@
     <div class="label atras">ATRÁS</div>
   </div>
 </body>
+</html>
