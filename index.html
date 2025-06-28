@@ -2,21 +2,45 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Control Retro de Motores</title>
+  <title>Copa América 2014</title>
   <script>
     let client;
+    const maxMessages = 3; // Máximo de 3 mensajes visibles
 
     function loadMQTT(callback) {
       if (typeof mqtt === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/mqtt/dist/mqtt.min.js';
         script.onload = callback;
-        script.onerror = () => {
-          document.getElementById('info').textContent = '❌ Error: no se pudo cargar mqtt.min.js';
-        };
+        script.onerror = () => mostrarEstadoMQTT("desconectado");
         document.head.appendChild(script);
       } else {
         callback();
+      }
+    }
+
+    function mostrarEstadoMQTT(estado) {
+      const icon = document.getElementById('estado-mqtt');
+      const textoEstado = document.getElementById('texto-estado');
+      
+      icon.classList.remove('conectado-neon', 'desconectado-neon', 'conectando-neon');
+      textoEstado.classList.remove('conectado-neon', 'desconectado-neon', 'conectando-neon');
+      
+      if (estado === "conectado") {
+        icon.innerHTML = "📶";
+        icon.classList.add('conectado-neon');
+        textoEstado.textContent = "Conectado";
+        textoEstado.classList.add('conectado-neon');
+      } else if (estado === "desconectado") {
+        icon.innerHTML = "📡";
+        icon.classList.add('desconectado-neon');
+        textoEstado.textContent = "Desconectado";
+        textoEstado.classList.add('desconectado-neon');
+      } else if (estado === "conectando") {
+        icon.innerHTML = "🔄";
+        icon.classList.add('conectando-neon');
+        textoEstado.textContent = "Conectando...";
+        textoEstado.classList.add('conectando-neon');
       }
     }
 
@@ -25,6 +49,7 @@
       if (input === 'mexico.chile') {
         document.getElementById('passwordModal').style.display = 'none';
         document.getElementById('control').style.display = 'block';
+        mostrarEstadoMQTT("conectando");
         loadMQTT(initMQTT);
       } else {
         alert("❌ Contraseña incorrecta.");
@@ -40,115 +65,350 @@
       client = mqtt.connect(broker);
 
       client.on('connect', () => {
-        document.getElementById('info').textContent = '✅ Conectado al broker MQTT';
-        client.subscribe('mundial/2014.0-7/alerta');
+        mostrarEstadoMQTT("conectado");
+        client.subscribe('mundial/2014.0-7');
       });
 
       client.on('error', (err) => {
-        document.getElementById('info').textContent = '❌ Error de conexión';
+        mostrarEstadoMQTT("desconectado");
         console.error('MQTT Error:', err);
       });
 
       client.on('message', function (topic, message) {
         const msg = message.toString();
-        const info = document.getElementById('info');
         const indicador = document.getElementById('indicador-obstaculo');
 
-        if (topic === 'mundial/2014.0-7/alerta') {
-          if (msg === 'obstaculo-izquierda') {
-            info.textContent = "⚠️ Obstáculo detectado a la izquierda. Debes girar.";
-            info.style.color = "#b30000";
+        if (msg.startsWith("alerta:")) {
+          const alerta = msg.substring(7);
+          if (alerta === "obstaculo-izquierda") {
+            mostrarMensaje("⚠️ Obstáculo a la izquierda.", "#ff5555", false);
             indicador.style.display = 'block';
-          } else if (msg === 'obstaculo-derecha') {
-            info.textContent = "⚠️ Obstáculo detectado a la derecha. Debes girar.";
-            info.style.color = "#b30000";
+          } else if (alerta === "obstaculo-derecha") {
+            mostrarMensaje("⚠️ Obstáculo a la derecha.", "#ff5555", false);
             indicador.style.display = 'block';
           }
         } else {
           indicador.style.display = 'none';
-          info.style.color = '#004488';
         }
       });
     }
 
+    function mostrarMensaje(texto, color, fadeOut = true) {
+      const messageContainer = document.getElementById('message-container');
+      
+      const messageElement = document.createElement('div');
+      messageElement.className = 'message';
+      messageElement.textContent = texto;
+      messageElement.style.color = color;
+      
+      if (color === "#00ff88") {
+        messageElement.style.textShadow = '0 0 5px #00ff88, 0 0 10px #00ff88';
+      }
+      
+      messageContainer.appendChild(messageElement);
+      
+      const messages = messageContainer.querySelectorAll('.message');
+      messages.forEach((msg, index) => {
+        if (index < messages.length - 1) {
+          msg.style.transform = `translateY(-${(messages.length - index - 1) * 40}px)`;
+        }
+      });
+      
+      if (fadeOut) {
+        setTimeout(() => {
+          const allMessages = messageContainer.querySelectorAll('.message');
+          if (allMessages.length > maxMessages) {
+            for (let i = 0; i < allMessages.length - maxMessages; i++) {
+              allMessages[i].classList.add('fade-out');
+              setTimeout(() => {
+                if (allMessages[i].parentNode) {
+                  allMessages[i].parentNode.removeChild(allMessages[i]);
+                }
+              }, 500);
+            }
+          }
+          
+          setTimeout(() => {
+            messageElement.classList.add('fade-out');
+            setTimeout(() => {
+              if (messageElement.parentNode) {
+                messageElement.parentNode.removeChild(messageElement);
+              }
+            }, 500);
+          }, 5000);
+        }, 100);
+      }
+    }
+
     function enviar(cmd) {
       if (client && client.connected) {
-        client.publish('mundial/2014.0-7/comando', cmd);
-        const info = document.getElementById('info');
-        info.textContent = '📤 Enviado: ' + cmd;
-        info.style.color = '#004488';
+        client.publish('mundial/2014.0-7', 'comando:' + cmd);
+        mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
       } else {
-        document.getElementById('info').textContent = '⚠️ Cliente no conectado';
+        mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
       }
     }
   </script>
-
   <style>
     body {
-      background-color: #fdf6f0;
+      background: linear-gradient(135deg, #1e3c72 0%, #89216b 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
       font-family: Arial, sans-serif;
+      color: white;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      position: relative;
+      overflow: hidden;
     }
 
+    body::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        135deg,
+        transparent 40%,
+        rgba(120, 200, 255, 0.25) 50%,
+        transparent 60%
+      );
+      z-index: -1;
+      animation: wave 3s linear infinite;
+      opacity: 0;
+    }
+
+    @keyframes wave {
+      0% {
+        transform: translateX(-100%) translateY(-100%);
+        opacity: 0;
+      }
+      20% {
+        opacity: 0.8;
+      }
+      80% {
+        opacity: 0.8;
+      }
+      100% {
+        transform: translateX(100%) translateY(100%);
+        opacity: 0;
+      }
+    }
+
+    #estado-conexion {
+      position: fixed;
+      top: 10px;
+      right: 20px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 999;
+    }
+    #estado-mqtt {
+      font-size: 28px;
+      font-weight: bold;
+    }
+    #texto-estado {
+      font-weight: bold;
+    }
+    
+    .conectado-neon {
+      color: #39FF14;
+      text-shadow: 0 0 5px #39FF14, 0 0 10px #39FF14;
+      animation: brillo-verde 1.5s infinite alternate;
+    }
+    .desconectado-neon {
+      color: #FF3131;
+      text-shadow: 0 0 5px #FF3131, 0 0 10px #FF3131;
+      animation: brillo-rojo 1.5s infinite alternate;
+    }
+    .conectando-neon {
+      color: #00F7FF;
+      text-shadow: 0 0 5px #00F7FF, 0 0 10px #00F7FF;
+      animation: brillo-celeste 1.5s infinite alternate;
+    }
+    
+    @keyframes brillo-verde {
+      from { text-shadow: 0 0 5px #39FF14, 0 0 10px #39FF14; }
+      to { text-shadow: 0 0 10px #39FF14, 0 0 20px #39FF14, 0 0 30px #39FF14; }
+    }
+    @keyframes brillo-rojo {
+      from { text-shadow: 0 0 5px #FF3131, 0 0 10px #FF3131; }
+      to { text-shadow: 0 0 10px #FF3131, 0 0 20px #FF3131, 0 0 30px #FF3131; }
+    }
+    @keyframes brillo-celeste {
+      from { text-shadow: 0 0 5px #00F7FF, 0 0 10px #00F7FF; }
+      to { text-shadow: 0 0 10px #00F7FF, 0 0 20px #00F7FF, 0 0 30px #00F7FF; }
+    }
+    
     .control {
-      width: 768px;
-      height: 768px;
+      width: 800px;
+      height: 800px;
       position: relative;
       display: none;
+      margin-top: 20px;
     }
-
     button {
       position: absolute;
-      background-color: rgba(255, 255, 255, 0.8);
-      border: none;
+      background-color: transparent;
+      border: 3px solid #00a8ff;
       border-radius: 50%;
-      font-size: 24px;
+      font-size: 28px;
       font-weight: bold;
-      color: purple;
-      width: 70px;
-      height: 70px;
+      color: #ff8c00;
+      width: 90px;
+      height: 90px;
       cursor: pointer;
-      transition: background-color 0.3s;
+      transition: all 0.3s;
+      box-shadow: 0 0 15px #00a8ff;
+      text-shadow: 0 0 5px #ff8c00, 0 0 10px #ff8c00;
     }
-
     button:hover {
-      background-color: #e0d0ff;
+      transform: scale(1.1);
+      box-shadow: 0 0 25px #00a8ff;
+    }
+    #adelante  { top: 150px; left: 355px; }
+    #izquierda { top: 275px; left: 240px; }
+    #parar     { 
+      top: 275px; 
+      left: 355px; 
+      border-color: #9d00ff;
+      box-shadow: 0 0 15px #9d00ff;
+      color: #ff8c00;
+    }
+    #derecha   { top: 275px; left: 470px; }
+    #atras     { top: 400px; left: 355px; }
+
+    .balon {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      background-color: white;
+      border-radius: 50%;
+      position: relative;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .balon:before, .balon:after {
+      content: "";
+      position: absolute;
+      background-color: black;
+      border-radius: 50%;
+    }
+    .balon:before {
+      width: 100%;
+      height: 10px;
+      top: 15px;
+      left: 0;
+    }
+    .balon:after {
+      width: 10px;
+      height: 100%;
+      top: 0;
+      left: 15px;
+    }
+    .balon.adelante:after {
+      transform: rotate(45deg);
+    }
+    .balon.adelante:before {
+      transform: rotate(45deg);
+    }
+    .balon.izquierda:after {
+      transform: rotate(90deg);
+    }
+    .balon.derecha:after {
+      transform: rotate(90deg);
+    }
+    .balon.atras:after {
+      transform: rotate(135deg);
+    }
+    .balon.atras:before {
+      transform: rotate(135deg);
+    }
+    .balon.parar {
+      background-color: #ff0000;
     }
 
-    #adelante  { top: 165px; left: 345px; }
-    #izquierda { top: 275px; left: 270px; }
-    #parar     { top: 275px; left: 345px; }
-    #derecha   { top: 275px; left: 420px; }
-    #atras     { top: 390px; left: 345px; }
+    #message-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column-reverse;
+      align-items: flex-end;
+      gap: 10px;
+      z-index: 100;
+      max-height: 60vh;
+      overflow: hidden;
+    }
 
-    #info {
-      position: absolute;
-      top: 480px;
-      left: 50px;
-      width: 650px;
-      text-align: center;
-      font-size: 18px;
+    .message {
+      font-size: 16px;
       font-weight: bold;
-      color: #004488;
-      transition: color 0.3s ease;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      transform: translateY(0);
+      opacity: 1;
+      transition: all 0.5s ease-out;
+      will-change: transform, opacity;
+      margin-top: 0;
+      position: relative;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(0, 168, 255, 0.3);
+      backdrop-filter: blur(2px);
+    }
+
+    .message::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        135deg,
+        transparent 0%,
+        rgba(0, 168, 255, 0.3) 25%,
+        transparent 50%,
+        rgba(0, 168, 255, 0.3) 75%,
+        transparent 100%
+      );
+      z-index: -1;
+      animation: wave 3s linear infinite;
+      transform: translateX(-100%) translateY(-100%);
+    }
+
+    .message.fade-out {
+      opacity: 0;
+      transform: translateY(-30px);
+      margin-top: -40px;
     }
 
     .label {
       position: absolute;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
-      color: #004488;
+      color: #ff8c00;
       text-align: center;
+      text-shadow: 0 0 5px #ff8c00, 0 0 10px #ff8c00;
     }
-
-    .label.adelante  { top: 240px; left: 345px; width: 72px; }
-    .label.izquierda { top: 345px; left: 270px; width: 80px; }
-    .label.parar     { top: 345px; left: 345px; width: 80px; }
-    .label.derecha   { top: 345px; left: 420px; width: 80px; }
-    .label.atras     { top: 465px; left: 336px; width: 80px; }
-
+    .label.adelante  { top: 260px; left: 355px; width: 80px; }
+    .label.izquierda { top: 375px; left: 240px; width: 80px; }
+    .label.parar     { 
+      top: 375px; 
+      left: 355px; 
+      width: 80px; 
+      color: #ff8c00;
+      text-shadow: 0 0 5px #ff8c00, 0 0 10px #9d00ff;
+    }
+    .label.derecha   { top: 375px; left: 470px; width: 80px; }
+    .label.atras     { top: 515px; left: 355px; width: 80px; }
     #indicador-obstaculo {
       position: absolute;
       top: 20px;
@@ -163,75 +423,110 @@
       animation: parpadeo 1s infinite;
       z-index: 1000;
     }
-
     @keyframes parpadeo {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.3; }
     }
-
     #passwordModal {
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 9999;
     }
-
     .modal-content {
-      background: white;
+      background: linear-gradient(135deg, rgba(30, 60, 114, 0.9) 0%, rgba(137, 33, 107, 0.9) 100%);
       padding: 30px;
-      border-radius: 10px;
+      border-radius: 15px;
       text-align: center;
-    }
-
-    .modal-content h3 {
-      margin-bottom: 15px;
-    }
-
-    .modal-content input {
-      padding: 8px;
-      width: 200px;
-      font-size: 16px;
-    }
-
-    .modal-content button {
-      margin-top: 10px;
-      padding: 8px 20px;
-      font-size: 16px;
-      border-radius: 8px;
-      border: none;
-      background: purple;
       color: white;
+      width: 280px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    .modal-content h3 {
+      margin-top: 0;
+      margin-bottom: 25px;
+      font-size: 20px;
+      color: #fff;
+      text-shadow: 0 0 10px #00a8ff;
+    }
+    .modal-content input {
+      padding: 12px;
+      width: 100%;
+      font-size: 16px;
+      margin-bottom: 25px;
+      box-sizing: border-box;
+      text-align: center;
+      border: 2px solid #00a8ff;
+      border-radius: 6px;
+      background: transparent;
+      color: white;
+      outline: none;
+      transition: all 0.3s;
+    }
+    .modal-content input:focus {
+      border-color: #89216b;
+      box-shadow: 0 0 10px #89216b;
+    }
+    .enter-btn {
+      width: 100%;
+      height: 45px;
+      background: transparent;
+      border: 2px solid #00a8ff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #ff8c00;
       cursor: pointer;
+      transition: all 0.3s;
+      text-shadow: 0 0 5px #ff8c00;
+      box-shadow: 0 0 10px #00a8ff;
+    }
+    .enter-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 20px #00a8ff;
+    }
+    h2 {
+      margin-top: 50px;
+      color: #ff8c00;
+      font-size: 32px;
+      text-shadow: 0 0 10px #00a8ff, 0 0 20px #ff8c00;
+      letter-spacing: 2px;
     }
   </style>
 </head>
-
 <body>
+  <div id="estado-conexion">
+    <div id="estado-mqtt" class="desconectado-neon">📡</div>
+    <div id="texto-estado" class="desconectado-neon">Desconectado</div>
+  </div>
+
   <div id="passwordModal">
     <div class="modal-content">
       <h3>🔒 Ingresa la contraseña para acceder</h3>
       <input type="password" id="passwordInput" onkeypress="permitirEnter(event)" placeholder="Contraseña">
-      <br>
-      <button onclick="validarContraseña()">Entrar</button>
+      <div class="enter-btn" onclick="validarContraseña()">ENTER</div>
     </div>
   </div>
 
-  <h2>Control Retro de Motores MQTT</h2>
+  <h2>COPA AMÉRICA 2014</h2>
 
   <div id="control" class="control">
     <div id="indicador-obstaculo"></div>
+    <div id="message-container"></div>
 
-    <button id="adelante" onclick="enviar('adelante')">↑</button>
-    <button id="izquierda" onclick="enviar('izquierda')">←</button>
-    <button id="parar" onclick="enviar('parar')">⏺</button>
-    <button id="derecha" onclick="enviar('derecha')">→</button>
-    <button id="atras" onclick="enviar('atras')">↓</button>
-
-    <div id="info">Conectando al broker MQTT...</div>
+    <button id="adelante" onclick="enviar('adelante')"><div class="balon adelante"></div></button>
+    <button id="izquierda" onclick="enviar('izquierda')"><div class="balon izquierda"></div></button>
+    <button id="parar" onclick="enviar('parar')"><div class="balon parar"></div></button>
+    <button id="derecha" onclick="enviar('derecha')"><div class="balon derecha"></div></button>
+    <button id="atras" onclick="enviar('atras')"><div class="balon atras"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
