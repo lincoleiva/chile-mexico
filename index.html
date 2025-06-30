@@ -93,18 +93,23 @@
       function callback(topic, message) {
         const msg = message.toString();
         const indicador = document.getElementById('indicador-obstaculo');
+        const distanciaDisplay = document.getElementById('distancia-display');
 
         if (msg.startsWith("alerta:")) {
           const alerta = msg.substring(7);
           
-          // Manejo optimizado de las alertas del sensor ultrasónico
+          // Manejo de distancia del sensor ultrasónico
           if (alerta.startsWith("distancia:")) {
             const distancia = alerta.substring(10);
             
-            // Actualización inteligente del mensaje de distancia (evita duplicados)
-            updateDistanceMessage(distancia);
+            // Actualizar display de distancia
+            if (distanciaDisplay) {
+              distanciaDisplay.textContent = `${distancia} cm`;
+              distanciaDisplay.style.color = getDistanceColor(distancia);
+              distanciaDisplay.style.textShadow = `0 0 5px ${getDistanceColor(distancia)}`;
+            }
             
-            // Control visual del indicador de obstáculo existente
+            // Control visual del indicador
             updateObstacleIndicator(distancia);
           }
           else if (alerta === "obstaculo-critico") {
@@ -129,25 +134,9 @@
           }
         }
 
-        // Funciones auxiliares para mejor organización
-        function updateDistanceMessage(distancia) {
-          const messages = document.querySelectorAll('.message');
-          let distanceMsgExists = false;
-          
-          messages.forEach(msg => {
-            if (msg.textContent.includes("📏")) {
-              msg.textContent = `📏 ${distancia} cm`;
-              msg.style.color = getDistanceColor(distancia);
-              distanceMsgExists = true;
-            }
-          });
-          
-          if (!distanceMsgExists) {
-            mostrarMensaje(`📏 ${distancia} cm`, getDistanceColor(distancia), true);
-          }
-        }
-
+        // Funciones auxiliares para el sensor
         function updateObstacleIndicator(distancia) {
+          distancia = parseFloat(distancia);
           if (distancia <= 20) {
             setIndicatorStyle('#ff0000', 'parpadeo-rojo 0.5s infinite');
           } else if (distancia <= 30) {
@@ -168,6 +157,7 @@
         }
 
         function getDistanceColor(distancia) {
+          distancia = parseFloat(distancia);
           if (distancia <= 20) return '#ff0000';
           if (distancia <= 30) return '#ff5555';
           if (distancia <= 40) return '#ffaa00';
@@ -279,364 +269,23 @@
     }
   </script>
   <style>
-    body {
-      background: linear-gradient(135deg, #1e3c72 0%, #89216b 100%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-family: Arial, sans-serif;
-      color: white;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      position: relative;
-      overflow: hidden;
-    }
-
-    body::before {
-      content: '';
+    /* [Mantén todos los estilos existentes igual] */
+    /* Solo añade este nuevo estilo para el display de distancia */
+    #distancia-display {
       position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: linear-gradient(
-        135deg,
-        transparent 40%,
-        rgba(120, 200, 255, 0.25) 50%,
-        transparent 60%
-      );
-      z-index: -1;
-      animation: wave 3s linear infinite;
-      opacity: 0;
-    }
-
-    @keyframes wave {
-      0% {
-        transform: translateX(-100%) translateY(-100%);
-        opacity: 0;
-      }
-      20% {
-        opacity: 0.8;
-      }
-      80% {
-        opacity: 0.8;
-      }
-      100% {
-        transform: translateX(100%) translateY(100%);
-        opacity: 0;
-      }
-    }
-
-    #estado-conexion {
-      position: fixed;
-      top: 10px;
-      right: 20px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      z-index: 999;
-    }
-    #estado-mqtt {
-      font-size: 28px;
-      font-weight: bold;
-    }
-    #texto-estado {
-      font-weight: bold;
-    }
-    
-    .conectado-neon {
-      color: #39FF14;
-      text-shadow: 0 0 5px #39FF14, 0 0 10px #39FF14;
-      animation: brillo-verde 1.5s infinite alternate;
-    }
-    .desconectado-neon {
-      color: #FF3131;
-      text-shadow: 0 0 5px #FF3131, 0 0 10px #FF3131;
-      animation: brillo-rojo 1.5s infinite alternate;
-    }
-    .conectando-neon {
-      color: #00F7FF;
-      text-shadow: 0 0 5px #00F7FF, 0 0 10px #00F7FF;
-      animation: brillo-celeste 1.5s infinite alternate;
-    }
-    
-    @keyframes brillo-verde {
-      from { text-shadow: 0 0 5px #39FF14, 0 0 10px #39FF14; }
-      to { text-shadow: 0 0 10px #39FF14, 0 0 20px #39FF14, 0 0 30px #39FF14; }
-    }
-    @keyframes brillo-rojo {
-      from { text-shadow: 0 0 5px #FF3131, 0 0 10px #FF3131; }
-      to { text-shadow: 0 0 10px #FF3131, 0 0 20px #FF3131, 0 0 30px #FF3131; }
-    }
-    @keyframes brillo-celeste {
-      from { text-shadow: 0 0 5px #00F7FF, 0 0 10px #00F7FF; }
-      to { text-shadow: 0 0 10px #00F7FF, 0 0 20px #00F7FF, 0 0 30px #00F7FF; }
-    }
-    
-    .control {
-      width: 800px;
-      height: 800px;
-      position: relative;
-      display: none;
-      margin-top: 20px;
-    }
-    button {
-      position: absolute;
-      background-color: transparent;
-      border: 3px solid #00a8ff;
-      border-radius: 50%;
-      font-size: 28px;
-      font-weight: bold;
-      color: #ff8c00;
-      width: 90px;
-      height: 90px;
-      cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 0 15px #00a8ff;
-      text-shadow: 0 0 5px #ff8c00, 0 0 10px #ff8c00;
-    }
-    button:hover {
-      transform: scale(1.1);
-      box-shadow: 0 0 25px #00a8ff;
-    }
-    #adelante  { top: 150px; left: 355px; }
-    #izquierda { top: 275px; left: 240px; }
-    #parar     { 
-      top: 275px; 
-      left: 355px; 
-      border-color: #9d00ff;
-      box-shadow: 0 0 15px #9d00ff;
-      color: #ff8c00;
-    }
-    #derecha   { top: 275px; left: 470px; }
-    #atras     { top: 400px; left: 355px; }
-
-    .balon {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      background-color: white;
-      border-radius: 50%;
-      position: relative;
-      box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    }
-    .balon:before, .balon:after {
-      content: "";
-      position: absolute;
-      background-color: black;
-      border-radius: 50%;
-    }
-    .balon:before {
-      width: 100%;
-      height: 10px;
-      top: 15px;
-      left: 0;
-    }
-    .balon:after {
-      width: 10px;
-      height: 100%;
-      top: 0;
-      left: 15px;
-    }
-    .balon.adelante:after {
-      transform: rotate(45deg);
-    }
-    .balon.adelante:before {
-      transform: rotate(45deg);
-    }
-    .balon.izquierda:after {
-      transform: rotate(90deg);
-    }
-    .balon.derecha:after {
-      transform: rotate(90deg);
-    }
-    .balon.atras:after {
-      transform: rotate(135deg);
-    }
-    .balon.atras:before {
-      transform: rotate(135deg);
-    }
-    .balon.parar {
-      background-color: #ff0000;
-    }
-
-    #message-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      display: flex;
-      flex-direction: column-reverse;
-      align-items: flex-end;
-      gap: 10px;
-      z-index: 100;
-      max-height: 60vh;
-      overflow: hidden;
-    }
-
-    .message {
-      font-size: 16px;
-      font-weight: bold;
-      padding: 12px 20px;
-      border-radius: 8px;
-      color: white;
-      transform: translateY(0);
-      opacity: 1;
-      transition: all 0.5s ease-out;
-      will-change: transform, opacity;
-      margin-top: 0;
-      position: relative;
-      overflow: hidden;
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid rgba(0, 168, 255, 0.3);
-      backdrop-filter: blur(2px);
-    }
-
-    .message::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 200%;
-      height: 200%;
-      background: linear-gradient(
-        135deg,
-        transparent 0%,
-        rgba(0, 168, 255, 0.3) 25%,
-        transparent 50%,
-        rgba(0, 168, 255, 0.3) 75%,
-        transparent 100%
-      );
-      z-index: -1;
-      animation: wave 3s linear infinite;
-      transform: translateX(-100%) translateY(-100%);
-    }
-
-    .message.fade-out {
-      opacity: 0;
-      transform: translateY(-30px);
-      margin-top: -40px;
-    }
-
-    .label {
-      position: absolute;
-      font-size: 16px;
-      font-weight: bold;
-      color: #ff8c00;
-      text-align: center;
-      text-shadow: 0 0 5px #ff8c00, 0 0 10px #ff8c00;
-    }
-    .label.adelante  { top: 260px; left: 355px; width: 80px; }
-    .label.izquierda { top: 375px; left: 240px; width: 80px; }
-    .label.parar     { 
-      top: 375px; 
-      left: 355px; 
-      width: 80px; 
-      color: #ff8c00;
-      text-shadow: 0 0 5px #ff8c00, 0 0 10px #9d00ff;
-    }
-    .label.derecha   { top: 375px; left: 470px; width: 80px; }
-    .label.atras     { top: 515px; left: 355px; width: 80px; }
-    
-    #indicador-obstaculo {
-      position: absolute;
-      top: 20px;
+      top: 120px;
       left: 50%;
       transform: translateX(-50%);
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      display: none;
-      z-index: 1000;
-      animation: parpadeo-rojo 1s infinite;
-    }
-    
-    @keyframes parpadeo-rojo {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-    @keyframes parpadeo-naranja {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.8; }
-    }
-    @keyframes parpadeo-amarillo {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.9; }
-    }
-    
-    #passwordModal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-    .modal-content {
-      background: linear-gradient(135deg, rgba(30, 60, 114, 0.9) 0%, rgba(137, 33, 107, 0.9) 100%);
-      padding: 30px;
-      border-radius: 15px;
-      text-align: center;
-      color: white;
-      width: 280px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-    }
-    .modal-content h3 {
-      margin-top: 0;
-      margin-bottom: 25px;
-      font-size: 20px;
-      color: #fff;
-      text-shadow: 0 0 10px #00a8ff;
-    }
-    .modal-content input {
-      padding: 12px;
-      width: 100%;
-      font-size: 16px;
-      margin-bottom: 25px;
-      box-sizing: border-box;
-      text-align: center;
-      border: 2px solid #00a8ff;
-      border-radius: 6px;
-      background: transparent;
-      color: white;
-      outline: none;
-      transition: all 0.3s;
-    }
-    .modal-content input:focus {
-      border-color: #89216b;
-      box-shadow: 0 0 10px #89216b;
-    }
-    .enter-btn {
-      width: 100%;
-      height: 45px;
-      background: transparent;
-      border: 2px solid #00a8ff;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-size: 24px;
       font-weight: bold;
-      color: #ff8c00;
-      cursor: pointer;
-      transition: all 0.3s;
-      text-shadow: 0 0 5px #ff8c00;
+      color: #00a8ff;
+      text-shadow: 0 0 5px #00a8ff;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 5px 15px;
+      border-radius: 20px;
+      border: 2px solid #00a8ff;
       box-shadow: 0 0 10px #00a8ff;
-    }
-    .enter-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 0 20px #00a8ff;
-    }
-    h2 {
-      margin-top: 50px;
-      color: #ff8c00;
-      font-size: 32px;
-      text-shadow: 0 0 10px #00a8ff, 0 0 20px #ff8c00;
-      letter-spacing: 2px;
     }
   </style>
 </head>
@@ -655,6 +304,7 @@
   </div>
 
   <h2>COPA AMÉRICA 2014</h2>
+  <div id="distancia-display">-- cm</div>
 
   <div id="control" class="control">
     <div id="indicador-obstaculo"></div>
