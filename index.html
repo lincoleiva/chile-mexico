@@ -5,9 +5,9 @@
   <title>Copa América 2014</title>
   <script>
     let client;
-    const maxMessages = 3; // Máximo de 3 mensajes visibles
+    const maxMessages = 3;
     let lastCommandTime = 0;
-    const commandDelay = 200; // Retraso mínimo entre comandos (ms)
+    const commandDelay = 200;
     let activeCommand = null;
     let commandInterval = null;
 
@@ -80,7 +80,7 @@
         mostrarEstadoMQTT("conectado");
         client.subscribe('mundial/2014.0-7', {qos: 0}, (err) => {
           if (!err) {
-            enviar('parar'); // Iniciar en estado detenido
+            enviar('parar');
           }
         });
       });
@@ -97,30 +97,37 @@
         if (msg.startsWith("alerta:")) {
           const alerta = msg.substring(7);
           if (alerta === "obstaculo-critico") {
-            mostrarMensaje("⛔ MOTORES APAGADOS - Obstáculo demasiado cerca (≤20cm)", "#ff0000", false);
+            mostrarMensaje("⛔ MOTORES APAGADOS - Obstáculo a ≤20cm", "#ff0000", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ff0000';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
           } 
           else if (alerta === "obstaculo-muy-cercano") {
-            mostrarMensaje("⚠️ SE APAGARÁN LOS MOTORES - Gire para otro lado (20-30cm)", "#ff5555", false);
+            mostrarMensaje("⚠️ PELIGRO! (20-30cm) - Motores se apagarán", "#ff5555", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ff5555';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 85, 85, 0.7)';
           }
           else if (alerta === "obstaculo-cercano") {
-            mostrarMensaje("⚠️ Gire hacia otro lado - Obstáculo cercano (30-40cm)", "#ffaa00", false);
+            mostrarMensaje("⚠️ Precaución (30-40cm) - Gire", "#ffaa00", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ffaa00';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 170, 0, 0.7)';
           }
           else if (alerta === "zona-segura") {
+            mostrarMensaje("✅ Zona segura - Sin obstáculos", "#00ff00", true);
             indicador.style.display = 'none';
+          }
+          else if (alerta.startsWith("distancia:")) {
+            const distancia = alerta.substring(10);
+            mostrarMensaje(`📏 Distancia: ${distancia} cm`, "#00a8ff", true);
+          }
+          else if (alerta === "error-sensor") {
+            mostrarMensaje("❌ Error en el sensor ultrasónico", "#ff00ff", false);
           }
         }
       });
       
-      // Configurar eventos de botones después de que el control sea visible
       setupButtonEvents();
     }
 
@@ -128,9 +135,9 @@
       if (activeCommand !== cmd) {
         stopCommand();
         activeCommand = cmd;
-        enviar(cmd); // Enviar comando inmediatamente
+        enviar(cmd);
         commandInterval = setInterval(() => {
-          enviar(cmd); // Enviar comando periódicamente mientras se mantenga presionado
+          enviar(cmd);
         }, commandDelay);
       }
     }
@@ -163,6 +170,7 @@
     function setupButtonEvents() {
       const buttons = {
         'adelante': 'adelante',
+        'atras': 'atras',
         'izquierda': 'izquierda',
         'derecha': 'derecha'
       };
@@ -170,12 +178,10 @@
       for (const [id, cmd] of Object.entries(buttons)) {
         const btn = document.getElementById(id);
         
-        // Eventos para ratón
         btn.addEventListener('mousedown', () => startCommand(cmd));
         btn.addEventListener('mouseup', stopCommand);
         btn.addEventListener('mouseleave', stopCommand);
         
-        // Eventos para pantalla táctil
         btn.addEventListener('touchstart', (e) => {
           e.preventDefault();
           startCommand(cmd);
@@ -186,7 +192,6 @@
         });
       }
 
-      // Botón de parar funciona con click
       document.getElementById('parar').addEventListener('click', () => {
         stopCommand();
         enviar('parar');
@@ -196,50 +201,35 @@
     function mostrarMensaje(texto, color, fadeOut = true) {
       const messageContainer = document.getElementById('message-container');
       
+      // Limpiar mensajes similares existentes
+      const mensajesActuales = messageContainer.querySelectorAll('.message');
+      mensajesActuales.forEach(msg => {
+        if (msg.textContent.includes(texto.substring(0, 20))) {
+          messageContainer.removeChild(msg);
+        }
+      });
+
       const messageElement = document.createElement('div');
       messageElement.className = 'message';
       messageElement.textContent = texto;
       messageElement.style.color = color;
-      
-      if (color === "#00ff88") {
-        messageElement.style.textShadow = '0 0 5px #00ff88, 0 0 10px #00ff88';
-      }
+      messageElement.style.backgroundColor = `${color}20`;
       
       messageContainer.appendChild(messageElement);
       
       const messages = messageContainer.querySelectorAll('.message');
-      messages.forEach((msg, index) => {
-        if (index < messages.length - 1) {
-          msg.style.transform = `translateY(-${(messages.length - index - 1) * 40}px)`;
-        }
-      });
+      if (messages.length > maxMessages) {
+        messages[0].remove();
+      }
       
       if (fadeOut) {
         setTimeout(() => {
-          const allMessages = messageContainer.querySelectorAll('.message');
-          if (allMessages.length > maxMessages) {
-            for (let i = 0; i < allMessages.length - maxMessages; i++) {
-              allMessages[i].classList.add('fade-out');
-              setTimeout(() => {
-                if (allMessages[i].parentNode) {
-                  allMessages[i].parentNode.removeChild(allMessages[i]);
-                }
-              }, 500);
-            }
-          }
-          
-          setTimeout(() => {
-            messageElement.classList.add('fade-out');
-            setTimeout(() => {
-              if (messageElement.parentNode) {
-                messageElement.parentNode.removeChild(messageElement);
-              }
-            }, 500);
-          }, 5000);
-        }, 100);
+          messageElement.remove();
+        }, 5000);
       }
     }
   </script>
+  <!-- ESTILOS ORIGINALES SIN MODIFICACIONES -->
   <style>
     body {
       background: linear-gradient(135deg, #1e3c72 0%, #89216b 100%);
@@ -589,6 +579,7 @@
   </style>
 </head>
 <body>
+  <!-- INTERFAZ ORIGINAL SIN CAMBIOS -->
   <div id="estado-conexion">
     <div id="estado-mqtt" class="desconectado-neon">📡</div>
     <div id="texto-estado" class="desconectado-neon">Desconectado</div>
