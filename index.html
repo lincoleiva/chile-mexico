@@ -10,6 +10,10 @@
     const commandDelay = 200;
     let activeCommand = null;
     let commandInterval = null;
+    let modoAutomatico = false;
+    let distanciaActual = 0;
+    let autoInterval = null;
+    let obstaculoCercano = false;
 
     function loadMQTT(callback) {
       if (typeof mqtt === 'undefined') {
@@ -45,6 +49,39 @@
         icon.classList.add('conectando-neon');
         textoEstado.textContent = "Conectando...";
         textoEstado.classList.add('conectando-neon');
+      }
+    }
+
+    function toggleAutomatico() {
+      modoAutomatico = !modoAutomatico;
+      
+      if (modoAutomatico) {
+        startAutomatico();
+        mostrarMensaje("🤖 Modo automático ACTIVADO - Avanzando", "#39FF14");
+      } else {
+        stopAutomatico();
+        mostrarMensaje("⏸️ Modo automático DESACTIVADO", "#FF3131");
+      }
+    }
+
+    function startAutomatico() {
+      stopCommand();
+      activeCommand = 'automatico';
+      enviar('derecha'); // Equivalente a adelante en tu configuración
+      autoInterval = setInterval(() => {
+        if (distanciaActual > 20) {
+          enviar('derecha');
+        } else {
+          enviar('parar');
+        }
+      }, commandDelay);
+    }
+
+    function stopAutomatico() {
+      clearInterval(autoInterval);
+      if (activeCommand === 'automatico') {
+        enviar('parar');
+        activeCommand = null;
       }
     }
 
@@ -97,40 +134,38 @@
         if (msg.startsWith("alerta:")) {
           const alerta = msg.substring(7);
           if (alerta === "obstaculo-critico") {
-            mostrarMensaje("⛔ MOTORES APAGADOS - Obstáculo a ≤20cm", "#ff0000", false);
+            distanciaActual = 20;
+            obstaculoCercano = true;
+            mostrarMensaje("⛔ Obstáculo ≤20cm - Girar permitido", "#ff0000", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ff0000';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
             indicador.style.animation = 'parpadeo-rojo 1s infinite';
+            
+            // Detener cualquier movimiento hacia adelante/atrás
+            if (activeCommand === 'adelante' || activeCommand === 'derecha' || 
+                activeCommand === 'atras' || activeCommand === 'izquierda') {
+              stopCommand();
+            }
           } 
           else if (alerta === "obstaculo-muy-cercano") {
-            mostrarMensaje("⚠️ PELIGRO! (20-30cm) - Motores se apagarán", "#ff5555", false);
-            indicador.style.display = 'block';
-            indicador.style.backgroundColor = '#ff5555';
-            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 85, 85, 0.7)';
-            indicador.style.animation = 'parpadeo-naranja 1s infinite';
-          }
-          else if (alerta === "obstaculo-cercano") {
-            mostrarMensaje("⚠️ Precaución (30-40cm) - Gire", "#ffaa00", false);
+            distanciaActual = 30;
+            obstaculoCercano = true;
+            mostrarMensaje("⚠️ Precaución (20-30cm)", "#ffaa00", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ffaa00';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 170, 0, 0.7)';
             indicador.style.animation = 'parpadeo-amarillo 1s infinite';
           }
           else if (alerta === "zona-segura") {
-            mostrarMensaje("✅ Zona segura - Sin obstáculos", "#00ff00", true);
+            distanciaActual = 100;
+            obstaculoCercano = false;
+            mostrarMensaje("✅ Zona segura - Avanzando", "#00ff00", true);
             indicador.style.display = 'none';
           }
           else if (alerta.startsWith("distancia:")) {
-            const distancia = alerta.substring(10);
-            mostrarMensaje(`📏 Distancia: ${distancia} cm`, "#00a8ff", true);
-          }
-          else if (alerta === "error-sensor") {
-            mostrarMensaje("❌ Error en el sensor ultrasónico", "#ff00ff", false);
-            indicador.style.display = 'block';
-            indicador.style.backgroundColor = '#ff00ff';
-            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 255, 0.7)';
-            indicador.style.animation = 'parpadeo-rojo 1s infinite';
+            distanciaActual = parseFloat(alerta.substring(10));
+            obstaculoCercano = distanciaActual <= 20;
           }
         }
       });
@@ -139,7 +174,23 @@
     }
 
     function startCommand(cmd) {
+      // Si hay obstáculo cercano, solo permitir giros (derecha/izquierda)
+      if (obstaculoCercano) {
+        // En tu configuración especial:
+        // 'derecha' es adelante (no permitido)
+        // 'adelante' es derecha (giro permitido)
+        // 'izquierda' es atrás (no permitido)
+        // 'atras' es izquierda (giro permitido)
+        
+        // Solo permitir comandos que corresponden a giros
+        if (cmd !== 'adelante' && cmd !== 'atras') {
+          mostrarMensaje("⛔ No se puede avanzar/retroceder con obstáculo cercano", "#ff0000", true);
+          return;
+        }
+      }
+      
       if (activeCommand !== cmd) {
+        stopAutomatico();
         stopCommand();
         activeCommand = cmd;
         enviar(cmd);
@@ -150,7 +201,7 @@
     }
 
     function stopCommand() {
-      if (activeCommand) {
+      if (activeCommand && activeCommand !== 'automatico') {
         clearInterval(commandInterval);
         enviar('parar');
         activeCommand = null;
@@ -167,7 +218,6 @@
       if (client && client.connected) {
         client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
         if (cmd !== 'parar') {
-          // Cambio solicitado: intercambiar los mensajes para "adelante" y "derecha"
           const mensajeMostrado = cmd === 'adelante' ? 'derecha' : 
                                 cmd === 'derecha' ? 'adelante' : cmd;
           mostrarMensaje('📤 Enviado: ' + mensajeMostrado, "#00ff88");
@@ -179,10 +229,10 @@
 
     function setupButtonEvents() {
       const buttons = {
-        'adelante': 'derecha',    // Adelante envía comando derecha
-        'atras': 'izquierda',     // Atrás envía comando izquierda
-        'izquierda': 'atras',     // Izquierda envía comando atrás
-        'derecha': 'adelante'     // Derecha envía comando adelante
+        'adelante': 'derecha',
+        'atras': 'izquierda',
+        'izquierda': 'atras',
+        'derecha': 'adelante'
       };
 
       for (const [id, cmd] of Object.entries(buttons)) {
@@ -202,16 +252,15 @@
         });
       }
 
-      document.getElementById('parar').addEventListener('click', () => {
-        stopCommand();
-        enviar('parar');
+      document.getElementById('parar').addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleAutomatico();
       });
     }
 
     function mostrarMensaje(texto, color, fadeOut = true) {
       const messageContainer = document.getElementById('message-container');
       
-      // Limpiar mensajes similares existentes
       const mensajesActuales = messageContainer.querySelectorAll('.message');
       mensajesActuales.forEach(msg => {
         if (msg.textContent.includes(texto.substring(0, 20))) {
@@ -629,7 +678,7 @@
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
-    <div class="label parar">PARAR</div>
+    <div class="label parar">AUTO/MANUAL</div>
     <div class="label derecha">DERECHA</div>
     <div class="label atras">ATRÁS</div>
   </div>
