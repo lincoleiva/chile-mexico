@@ -167,7 +167,10 @@
       if (client && client.connected) {
         client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
         if (cmd !== 'parar') {
-          mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
+          // Cambio solicitado: intercambiar los mensajes para "adelante" y "derecha"
+          const mensajeMostrado = cmd === 'adelante' ? 'derecha' : 
+                                cmd === 'derecha' ? 'adelante' : cmd;
+          mostrarMensaje('📤 Enviado: ' + mensajeMostrado, "#00ff88");
         }
       } else {
         mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
@@ -176,10 +179,10 @@
 
     function setupButtonEvents() {
       const buttons = {
-        'adelante': 'adelante',
-        'atras': 'atras',
-        'izquierda': 'izquierda',
-        'derecha': 'derecha'
+        'adelante': 'derecha',    // Adelante envía comando derecha
+        'atras': 'izquierda',     // Atrás envía comando izquierda
+        'izquierda': 'atras',     // Izquierda envía comando atrás
+        'derecha': 'adelante'     // Derecha envía comando adelante
       };
 
       for (const [id, cmd] of Object.entries(buttons)) {
@@ -618,11 +621,11 @@
     <div id="indicador-obstaculo"></div>
     <div id="message-container"></div>
 
-    <button id="adelante" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
-    <button id="izquierda" onmousedown="startCommand('izquierda')" onmouseup="stopCommand()" ontouchstart="startCommand('izquierda')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
+    <button id="adelante" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
+    <button id="izquierda" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
     <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
-    <button id="derecha" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
-    <button id="atras" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon atras"></div></button>
+    <button id="derecha" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
+    <button id="atras" onmousedown="startCommand('izquierda')" onmouseup="stopCommand()" ontouchstart="startCommand('izquierda')" ontouchend="stopCommand()"><div class="balon atras"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
