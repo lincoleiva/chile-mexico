@@ -101,18 +101,21 @@
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ff0000';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
+            indicador.style.animation = 'parpadeo-rojo 1s infinite';
           } 
           else if (alerta === "obstaculo-muy-cercano") {
             mostrarMensaje("⚠️ PELIGRO! (20-30cm) - Motores se apagarán", "#ff5555", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ff5555';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 85, 85, 0.7)';
+            indicador.style.animation = 'parpadeo-naranja 1s infinite';
           }
           else if (alerta === "obstaculo-cercano") {
             mostrarMensaje("⚠️ Precaución (30-40cm) - Gire", "#ffaa00", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ffaa00';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 170, 0, 0.7)';
+            indicador.style.animation = 'parpadeo-amarillo 1s infinite';
           }
           else if (alerta === "zona-segura") {
             mostrarMensaje("✅ Zona segura - Sin obstáculos", "#00ff00", true);
@@ -124,6 +127,10 @@
           }
           else if (alerta === "error-sensor") {
             mostrarMensaje("❌ Error en el sensor ultrasónico", "#ff00ff", false);
+            indicador.style.display = 'block';
+            indicador.style.backgroundColor = '#ff00ff';
+            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 255, 0.7)';
+            indicador.style.animation = 'parpadeo-rojo 1s infinite';
           }
         }
       });
@@ -229,7 +236,6 @@
       }
     }
   </script>
-  <!-- ESTILOS ORIGINALES SIN MODIFICACIONES -->
   <style>
     body {
       background: linear-gradient(135deg, #1e3c72 0%, #89216b 100%);
@@ -355,14 +361,15 @@
     }
     #adelante  { top: 150px; left: 355px; }
     #izquierda { top: 275px; left: 240px; }
-    #derecha   { top: 275px; left: 470px; }
     #parar     { 
-      top: 400px; 
+      top: 275px; 
       left: 355px; 
       border-color: #9d00ff;
       box-shadow: 0 0 15px #9d00ff;
       color: #ff8c00;
     }
+    #derecha   { top: 275px; left: 470px; }
+    #atras     { top: 400px; left: 355px; }
 
     .balon {
       display: inline-block;
@@ -402,6 +409,12 @@
     }
     .balon.derecha:after {
       transform: rotate(90deg);
+    }
+    .balon.atras:after {
+      transform: rotate(135deg);
+    }
+    .balon.atras:before {
+      transform: rotate(135deg);
     }
     .balon.parar {
       background-color: #ff0000;
@@ -474,14 +487,15 @@
     }
     .label.adelante  { top: 260px; left: 355px; width: 80px; }
     .label.izquierda { top: 375px; left: 240px; width: 80px; }
-    .label.derecha   { top: 375px; left: 470px; width: 80px; }
     .label.parar     { 
-      top: 515px; 
+      top: 375px; 
       left: 355px; 
       width: 80px; 
       color: #ff8c00;
       text-shadow: 0 0 5px #ff8c00, 0 0 10px #9d00ff;
     }
+    .label.derecha   { top: 375px; left: 470px; width: 80px; }
+    .label.atras     { top: 515px; left: 355px; width: 80px; }
     
     #indicador-obstaculo {
       position: absolute;
@@ -490,17 +504,23 @@
       transform: translateX(-50%);
       width: 30px;
       height: 30px;
-      background-color: red;
       border-radius: 50%;
-      box-shadow: 0 0 10px 5px rgba(255, 0, 0, 0.7);
       display: none;
-      animation: parpadeo 1s infinite;
       z-index: 1000;
+      animation: parpadeo-rojo 1s infinite;
     }
     
-    @keyframes parpadeo {
+    @keyframes parpadeo-rojo {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.7; }
+    }
+    @keyframes parpadeo-naranja {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+    @keyframes parpadeo-amarillo {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.9; }
     }
     
     #passwordModal {
@@ -579,7 +599,6 @@
   </style>
 </head>
 <body>
-  <!-- INTERFAZ ORIGINAL SIN CAMBIOS -->
   <div id="estado-conexion">
     <div id="estado-mqtt" class="desconectado-neon">📡</div>
     <div id="texto-estado" class="desconectado-neon">Desconectado</div>
@@ -601,13 +620,15 @@
 
     <button id="adelante" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
     <button id="izquierda" onmousedown="startCommand('izquierda')" onmouseup="stopCommand()" ontouchstart="startCommand('izquierda')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
-    <button id="derecha" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
     <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
+    <button id="derecha" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
+    <button id="atras" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon atras"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
-    <div class="label derecha">DERECHA</div>
     <div class="label parar">PARAR</div>
+    <div class="label derecha">DERECHA</div>
+    <div class="label atras">ATRÁS</div>
   </div>
 </body>
 </html>
