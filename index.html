@@ -96,15 +96,27 @@
 
         if (msg.startsWith("alerta:")) {
           const alerta = msg.substring(7);
-          if (alerta === "obstaculo-izquierda") {
-            mostrarMensaje("⚠️ Obstáculo a la izquierda.", "#ff5555", false);
+          if (alerta === "obstaculo-critico") {
+            mostrarMensaje("⛔ MOTORES APAGADOS - Obstáculo demasiado cerca (≤20cm)", "#ff0000", false);
             indicador.style.display = 'block';
-          } else if (alerta === "obstaculo-derecha") {
-            mostrarMensaje("⚠️ Obstáculo a la derecha.", "#ff5555", false);
+            indicador.style.backgroundColor = '#ff0000';
+            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
+          } 
+          else if (alerta === "obstaculo-muy-cercano") {
+            mostrarMensaje("⚠️ SE APAGARÁN LOS MOTORES - Gire para otro lado (20-30cm)", "#ff5555", false);
             indicador.style.display = 'block';
+            indicador.style.backgroundColor = '#ff5555';
+            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 85, 85, 0.7)';
           }
-        } else {
-          indicador.style.display = 'none';
+          else if (alerta === "obstaculo-cercano") {
+            mostrarMensaje("⚠️ Gire hacia otro lado - Obstáculo cercano (30-40cm)", "#ffaa00", false);
+            indicador.style.display = 'block';
+            indicador.style.backgroundColor = '#ffaa00';
+            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 170, 0, 0.7)';
+          }
+          else if (alerta === "zona-segura") {
+            indicador.style.display = 'none';
+          }
         }
       });
       
@@ -151,7 +163,6 @@
     function setupButtonEvents() {
       const buttons = {
         'adelante': 'adelante',
-        'atras': 'atras',
         'izquierda': 'izquierda',
         'derecha': 'derecha'
       };
@@ -354,15 +365,14 @@
     }
     #adelante  { top: 150px; left: 355px; }
     #izquierda { top: 275px; left: 240px; }
+    #derecha   { top: 275px; left: 470px; }
     #parar     { 
-      top: 275px; 
+      top: 400px; 
       left: 355px; 
       border-color: #9d00ff;
       box-shadow: 0 0 15px #9d00ff;
       color: #ff8c00;
     }
-    #derecha   { top: 275px; left: 470px; }
-    #atras     { top: 400px; left: 355px; }
 
     .balon {
       display: inline-block;
@@ -402,12 +412,6 @@
     }
     .balon.derecha:after {
       transform: rotate(90deg);
-    }
-    .balon.atras:after {
-      transform: rotate(135deg);
-    }
-    .balon.atras:before {
-      transform: rotate(135deg);
     }
     .balon.parar {
       background-color: #ff0000;
@@ -480,15 +484,15 @@
     }
     .label.adelante  { top: 260px; left: 355px; width: 80px; }
     .label.izquierda { top: 375px; left: 240px; width: 80px; }
+    .label.derecha   { top: 375px; left: 470px; width: 80px; }
     .label.parar     { 
-      top: 375px; 
+      top: 515px; 
       left: 355px; 
       width: 80px; 
       color: #ff8c00;
       text-shadow: 0 0 5px #ff8c00, 0 0 10px #9d00ff;
     }
-    .label.derecha   { top: 375px; left: 470px; width: 80px; }
-    .label.atras     { top: 515px; left: 355px; width: 80px; }
+    
     #indicador-obstaculo {
       position: absolute;
       top: 20px;
@@ -503,10 +507,12 @@
       animation: parpadeo 1s infinite;
       z-index: 1000;
     }
+    
     @keyframes parpadeo {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+      50% { opacity: 0.7; }
     }
+    
     #passwordModal {
       position: fixed;
       top: 0;
@@ -604,15 +610,13 @@
 
     <button id="adelante" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
     <button id="izquierda" onmousedown="startCommand('izquierda')" onmouseup="stopCommand()" ontouchstart="startCommand('izquierda')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
-    <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
     <button id="derecha" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
-    <button id="atras" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon atras"></div></button>
+    <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
-    <div class="label parar">PARAR</div>
     <div class="label derecha">DERECHA</div>
-    <div class="label atras">ATRÁS</div>
+    <div class="label parar">PARAR</div>
   </div>
 </body>
 </html>
