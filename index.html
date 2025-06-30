@@ -117,11 +117,15 @@
         stopCommand();
         activeCommand = cmd;
         enviar(cmd); // Enviar comando inmediatamente
+        commandInterval = setInterval(() => {
+          enviar(cmd); // Enviar comando periódicamente mientras se mantenga presionado
+        }, commandDelay);
       }
     }
 
     function stopCommand() {
       if (activeCommand) {
+        clearInterval(commandInterval);
         enviar('parar');
         activeCommand = null;
       }
@@ -136,6 +140,9 @@
       
       if (client && client.connected) {
         client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
+        if (cmd !== 'parar') {
+          mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
+        }
       } else {
         mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
       }
@@ -144,6 +151,7 @@
     function setupButtonEvents() {
       const buttons = {
         'adelante': 'adelante',
+        'atras': 'atras',
         'izquierda': 'izquierda',
         'derecha': 'derecha'
       };
@@ -152,18 +160,25 @@
         const btn = document.getElementById(id);
         
         // Eventos para ratón
-        btn.addEventListener('click', () => startCommand(cmd));
+        btn.addEventListener('mousedown', () => startCommand(cmd));
+        btn.addEventListener('mouseup', stopCommand);
+        btn.addEventListener('mouseleave', stopCommand);
         
         // Eventos para pantalla táctil
         btn.addEventListener('touchstart', (e) => {
           e.preventDefault();
           startCommand(cmd);
         });
+        btn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          stopCommand();
+        });
       }
 
       // Botón de parar funciona con click
       document.getElementById('parar').addEventListener('click', () => {
         stopCommand();
+        enviar('parar');
       });
     }
 
@@ -340,13 +355,14 @@
     #adelante  { top: 150px; left: 355px; }
     #izquierda { top: 275px; left: 240px; }
     #parar     { 
-      top: 400px; 
+      top: 275px; 
       left: 355px; 
       border-color: #9d00ff;
       box-shadow: 0 0 15px #9d00ff;
       color: #ff8c00;
     }
     #derecha   { top: 275px; left: 470px; }
+    #atras     { top: 400px; left: 355px; }
 
     .balon {
       display: inline-block;
@@ -386,6 +402,12 @@
     }
     .balon.derecha:after {
       transform: rotate(90deg);
+    }
+    .balon.atras:after {
+      transform: rotate(135deg);
+    }
+    .balon.atras:before {
+      transform: rotate(135deg);
     }
     .balon.parar {
       background-color: #ff0000;
@@ -459,13 +481,14 @@
     .label.adelante  { top: 260px; left: 355px; width: 80px; }
     .label.izquierda { top: 375px; left: 240px; width: 80px; }
     .label.parar     { 
-      top: 515px; 
+      top: 375px; 
       left: 355px; 
       width: 80px; 
       color: #ff8c00;
       text-shadow: 0 0 5px #ff8c00, 0 0 10px #9d00ff;
     }
     .label.derecha   { top: 375px; left: 470px; width: 80px; }
+    .label.atras     { top: 515px; left: 355px; width: 80px; }
     #indicador-obstaculo {
       position: absolute;
       top: 20px;
@@ -579,15 +602,17 @@
     <div id="indicador-obstaculo"></div>
     <div id="message-container"></div>
 
-    <button id="adelante"><div class="balon adelante"></div></button>
-    <button id="izquierda"><div class="balon izquierda"></div></button>
-    <button id="derecha"><div class="balon derecha"></div></button>
-    <button id="parar"><div class="balon parar"></div></button>
+    <button id="adelante" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
+    <button id="izquierda" onmousedown="startCommand('izquierda')" onmouseup="stopCommand()" ontouchstart="startCommand('izquierda')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
+    <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
+    <button id="derecha" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
+    <button id="atras" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon atras"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
-    <div class="label derecha">DERECHA</div>
     <div class="label parar">PARAR</div>
+    <div class="label derecha">DERECHA</div>
+    <div class="label atras">ATRÁS</div>
   </div>
 </body>
 </html>
