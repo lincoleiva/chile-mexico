@@ -90,50 +90,92 @@
         console.error('MQTT Error:', err);
       });
 
-      client.on('message', function (topic, message) {
+      function callback(topic, message) {
         const msg = message.toString();
         const indicador = document.getElementById('indicador-obstaculo');
 
         if (msg.startsWith("alerta:")) {
           const alerta = msg.substring(7);
-          if (alerta === "obstaculo-critico") {
-            mostrarMensaje("⛔ MOTORES APAGADOS - Obstáculo a ≤20cm", "#ff0000", false);
-            indicador.style.display = 'block';
-            indicador.style.backgroundColor = '#ff0000';
-            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
-            indicador.style.animation = 'parpadeo-rojo 1s infinite';
-          } 
+          
+          // Manejo optimizado de las alertas del sensor ultrasónico
+          if (alerta.startsWith("distancia:")) {
+            const distancia = alerta.substring(10);
+            
+            // Actualización inteligente del mensaje de distancia (evita duplicados)
+            updateDistanceMessage(distancia);
+            
+            // Control visual del indicador de obstáculo existente
+            updateObstacleIndicator(distancia);
+          }
+          else if (alerta === "obstaculo-critico") {
+            mostrarMensaje("⛔ ¡PELIGRO! Obstáculo ≤20cm", "#ff0000", false);
+            setIndicatorStyle('#ff0000', 'parpadeo-rojo 0.5s infinite');
+          }
           else if (alerta === "obstaculo-muy-cercano") {
-            mostrarMensaje("⚠️ PELIGRO! (20-30cm) - Motores se apagarán", "#ff5555", false);
-            indicador.style.display = 'block';
-            indicador.style.backgroundColor = '#ff5555';
-            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 85, 85, 0.7)';
-            indicador.style.animation = 'parpadeo-naranja 1s infinite';
+            mostrarMensaje("⚠️ Precaución (20-30cm)", "#ffaa00", false);
+            setIndicatorStyle('#ffaa00', 'parpadeo-amarillo 1s infinite');
           }
           else if (alerta === "obstaculo-cercano") {
-            mostrarMensaje("⚠️ Precaución (30-40cm) - Gire", "#ffaa00", false);
-            indicador.style.display = 'block';
-            indicador.style.backgroundColor = '#ffaa00';
-            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 170, 0, 0.7)';
-            indicador.style.animation = 'parpadeo-amarillo 1s infinite';
+            mostrarMensaje("⚠️ Atención (30-40cm)", "#ffff00", true);
+            setIndicatorStyle('#ffff00', 'parpadeo-amarillo 1.5s infinite');
           }
           else if (alerta === "zona-segura") {
-            mostrarMensaje("✅ Zona segura - Sin obstáculos", "#00ff00", true);
-            indicador.style.display = 'none';
-          }
-          else if (alerta.startsWith("distancia:")) {
-            const distancia = alerta.substring(10);
-            mostrarMensaje(`📏 Distancia: ${distancia} cm`, "#00a8ff", true);
+            mostrarMensaje("✅ Zona segura (>40cm)", "#00ff00", true);
+            document.getElementById('indicador-obstaculo').style.display = 'none';
           }
           else if (alerta === "error-sensor") {
-            mostrarMensaje("❌ Error en el sensor ultrasónico", "#ff00ff", false);
-            indicador.style.display = 'block';
-            indicador.style.backgroundColor = '#ff00ff';
-            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 255, 0.7)';
-            indicador.style.animation = 'parpadeo-rojo 1s infinite';
+            mostrarMensaje("❌ Error en sensor ultrasónico", "#ff00ff", false);
+            setIndicatorStyle('#ff00ff', 'parpadeo-rojo 0.3s infinite');
           }
         }
-      });
+
+        // Funciones auxiliares para mejor organización
+        function updateDistanceMessage(distancia) {
+          const messages = document.querySelectorAll('.message');
+          let distanceMsgExists = false;
+          
+          messages.forEach(msg => {
+            if (msg.textContent.includes("📏")) {
+              msg.textContent = `📏 ${distancia} cm`;
+              msg.style.color = getDistanceColor(distancia);
+              distanceMsgExists = true;
+            }
+          });
+          
+          if (!distanceMsgExists) {
+            mostrarMensaje(`📏 ${distancia} cm`, getDistanceColor(distancia), true);
+          }
+        }
+
+        function updateObstacleIndicator(distancia) {
+          if (distancia <= 20) {
+            setIndicatorStyle('#ff0000', 'parpadeo-rojo 0.5s infinite');
+          } else if (distancia <= 30) {
+            setIndicatorStyle('#ff5555', 'parpadeo-naranja 1s infinite');
+          } else if (distancia <= 40) {
+            setIndicatorStyle('#ffaa00', 'parpadeo-amarillo 1.5s infinite');
+          } else {
+            document.getElementById('indicador-obstaculo').style.display = 'none';
+          }
+        }
+
+        function setIndicatorStyle(color, animation) {
+          const indicador = document.getElementById('indicador-obstaculo');
+          indicador.style.display = 'block';
+          indicador.style.backgroundColor = color;
+          indicador.style.boxShadow = `0 0 10px 5px ${color}7`;
+          indicador.style.animation = animation;
+        }
+
+        function getDistanceColor(distancia) {
+          if (distancia <= 20) return '#ff0000';
+          if (distancia <= 30) return '#ff5555';
+          if (distancia <= 40) return '#ffaa00';
+          return '#00ff00';
+        }
+      }
+
+      client.on('message', callback);
       
       setupButtonEvents();
     }
