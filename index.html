@@ -53,9 +53,6 @@
     }
 
     function toggleAutomatico() {
-      // Detener cualquier comando activo primero
-      stopCommand();
-      
       modoAutomatico = !modoAutomatico;
       
       if (modoAutomatico) {
@@ -63,34 +60,14 @@
         mostrarMensaje("🤖 Modo automático ACTIVADO - Avanzando", "#39FF14");
       } else {
         stopAutomatico();
-        mostrarMensaje("⏸️ Modo automático DESACTIVADO", "#FF3131");
-      }
-      actualizarEstadoAutomatico();
-    }
-
-    function actualizarEstadoAutomatico() {
-      const estadoAuto = document.getElementById('estado-automatico');
-      const botonAuto = document.getElementById('parar');
-      
-      if (modoAutomatico) {
-        estadoAuto.textContent = "AUTO: ON";
-        estadoAuto.style.color = "#39FF14";
-        estadoAuto.style.textShadow = "0 0 5px #39FF14, 0 0 10px #39FF14";
-        botonAuto.style.borderColor = "#39FF14";
-        botonAuto.style.boxShadow = "0 0 15px #39FF14";
-      } else {
-        estadoAuto.textContent = "AUTO: OFF";
-        estadoAuto.style.color = "#FF3131";
-        estadoAuto.style.textShadow = "0 0 5px #FF3131, 0 0 10px #FF3131";
-        botonAuto.style.borderColor = "#9d00ff";
-        botonAuto.style.boxShadow = "0 0 15px #9d00ff";
+        mostrarMensaje("⏸ Modo automático DESACTIVADO", "#FF3131");
       }
     }
 
     function startAutomatico() {
       stopCommand();
       activeCommand = 'automatico';
-      enviar('derecha');
+      enviar('derecha'); // Equivalente a adelante en tu configuración
       autoInterval = setInterval(() => {
         if (distanciaActual > 20) {
           enviar('derecha');
@@ -165,6 +142,7 @@
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
             indicador.style.animation = 'parpadeo-rojo 1s infinite';
             
+            // Detener cualquier movimiento hacia adelante/atrás
             if (activeCommand === 'adelante' || activeCommand === 'derecha' || 
                 activeCommand === 'atras' || activeCommand === 'izquierda') {
               stopCommand();
@@ -173,7 +151,7 @@
           else if (alerta === "obstaculo-muy-cercano") {
             distanciaActual = 30;
             obstaculoCercano = true;
-            mostrarMensaje("⚠️ Precaución (20-30cm)", "#ffaa00", false);
+            mostrarMensaje("⚠ Precaución (20-30cm)", "#ffaa00", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ffaa00';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 170, 0, 0.7)';
@@ -196,7 +174,15 @@
     }
 
     function startCommand(cmd) {
+      // Si hay obstáculo cercano, solo permitir giros (derecha/izquierda)
       if (obstaculoCercano) {
+        // En tu configuración especial:
+        // 'derecha' es adelante (no permitido)
+        // 'adelante' es derecha (giro permitido)
+        // 'izquierda' es atrás (no permitido)
+        // 'atras' es izquierda (giro permitido)
+        
+        // Solo permitir comandos que corresponden a giros
         if (cmd !== 'adelante' && cmd !== 'atras') {
           mostrarMensaje("⛔ No se puede avanzar/retroceder con obstáculo cercano", "#ff0000", true);
           return;
@@ -237,13 +223,14 @@
           mostrarMensaje('📤 Enviado: ' + mensajeMostrado, "#00ff88");
         }
       } else {
-        mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
+        mostrarMensaje('⚠ Cliente no conectado', "#ff4444", false);
       }
     }
 
     function setupButtonEvents() {
       const buttons = {
         'adelante': 'derecha',
+        'atras': 'izquierda',
         'izquierda': 'atras',
         'derecha': 'adelante'
       };
@@ -251,16 +238,12 @@
       for (const [id, cmd] of Object.entries(buttons)) {
         const btn = document.getElementById(id);
         
-        btn.addEventListener('mousedown', () => {
-          stopAutomatico();
-          startCommand(cmd);
-        });
+        btn.addEventListener('mousedown', () => startCommand(cmd));
         btn.addEventListener('mouseup', stopCommand);
         btn.addEventListener('mouseleave', stopCommand);
         
         btn.addEventListener('touchstart', (e) => {
           e.preventDefault();
-          stopAutomatico();
           startCommand(cmd);
         });
         btn.addEventListener('touchend', (e) => {
@@ -269,14 +252,10 @@
         });
       }
 
-      const btnAuto = document.getElementById('parar');
-      btnAuto.addEventListener('click', (e) => {
+      document.getElementById('parar').addEventListener('click', (e) => {
         e.preventDefault();
         toggleAutomatico();
       });
-      
-      btnAuto.removeEventListener('mouseup', stopCommand);
-      btnAuto.removeEventListener('mouseleave', stopCommand);
     }
 
     function mostrarMensaje(texto, color, fadeOut = true) {
@@ -293,7 +272,7 @@
       messageElement.className = 'message';
       messageElement.textContent = texto;
       messageElement.style.color = color;
-      messageElement.style.backgroundColor = `${color}20`;
+      messageElement.style.backgroundColor = ${color}20;
       
       messageContainer.appendChild(messageElement);
       
@@ -310,7 +289,6 @@
     }
   </script>
   <style>
-    /* Todos los estilos se mantienen exactamente igual */
     body {
       background: linear-gradient(135deg, #1e3c72 0%, #89216b 100%);
       display: flex;
@@ -378,15 +356,6 @@
       font-weight: bold;
     }
     
-    #estado-automatico {
-      position: fixed;
-      top: 10px;
-      right: 180px;
-      font-size: 16px;
-      font-weight: bold;
-      z-index: 999;
-    }
-    
     .conectado-neon {
       color: #39FF14;
       text-shadow: 0 0 5px #39FF14, 0 0 10px #39FF14;
@@ -445,13 +414,14 @@
     #adelante  { top: 150px; left: 355px; }
     #izquierda { top: 275px; left: 240px; }
     #parar     { 
-      top: 400px; 
+      top: 275px; 
       left: 355px; 
       border-color: #9d00ff;
       box-shadow: 0 0 15px #9d00ff;
       color: #ff8c00;
     }
     #derecha   { top: 275px; left: 470px; }
+    #atras     { top: 400px; left: 355px; }
 
     .balon {
       display: inline-block;
@@ -491,6 +461,12 @@
     }
     .balon.derecha:after {
       transform: rotate(90deg);
+    }
+    .balon.atras:after {
+      transform: rotate(135deg);
+    }
+    .balon.atras:before {
+      transform: rotate(135deg);
     }
     .balon.parar {
       background-color: #ff0000;
@@ -564,13 +540,14 @@
     .label.adelante  { top: 260px; left: 355px; width: 80px; }
     .label.izquierda { top: 375px; left: 240px; width: 80px; }
     .label.parar     { 
-      top: 515px; 
+      top: 375px; 
       left: 355px; 
       width: 80px; 
       color: #ff8c00;
       text-shadow: 0 0 5px #ff8c00, 0 0 10px #9d00ff;
     }
     .label.derecha   { top: 375px; left: 470px; width: 80px; }
+    .label.atras     { top: 515px; left: 355px; width: 80px; }
     
     #indicador-obstaculo {
       position: absolute;
@@ -675,7 +652,6 @@
 </head>
 <body>
   <div id="estado-conexion">
-    <div id="estado-automatico">AUTO: OFF</div>
     <div id="estado-mqtt" class="desconectado-neon">📡</div>
     <div id="texto-estado" class="desconectado-neon">Desconectado</div>
   </div>
@@ -696,13 +672,15 @@
 
     <button id="adelante" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
     <button id="izquierda" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
+    <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
     <button id="derecha" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
-    <button id="parar" onclick="toggleAutomatico()"><div class="balon parar"></div></button>
+    <button id="atras" onmousedown="startCommand('izquierda')" onmouseup="stopCommand()" ontouchstart="startCommand('izquierda')" ontouchend="stopCommand()"><div class="balon atras"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
-    <div class="label derecha">DERECHA</div>
     <div class="label parar">AUTO/MANUAL</div>
+    <div class="label derecha">DERECHA</div>
+    <div class="label atras">ATRÁS</div>
   </div>
 </body>
 </html>
