@@ -1,7 +1,7 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
+ <!DOCTYPE html>
+<!-- saved from url=(0042)https://lincoleiva.github.io/chile-mexico/ -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
   <title>Copa América 2014</title>
   <script>
     let client;
@@ -10,10 +10,6 @@
     const commandDelay = 200;
     let activeCommand = null;
     let commandInterval = null;
-    let modoAutomatico = false;
-    let distanciaActual = 0;
-    let autoInterval = null;
-    let obstaculoCercano = false;
 
     function loadMQTT(callback) {
       if (typeof mqtt === 'undefined') {
@@ -49,61 +45,6 @@
         icon.classList.add('conectando-neon');
         textoEstado.textContent = "Conectando...";
         textoEstado.classList.add('conectando-neon');
-      }
-    }
-
-    function toggleAutomatico() {
-      stopCommand();
-      
-      modoAutomatico = !modoAutomatico;
-      
-      if (modoAutomatico) {
-        startAutomatico();
-        mostrarMensaje("🤖 Modo automático ACTIVADO - Avanzando", "#39FF14");
-      } else {
-        stopAutomatico();
-        mostrarMensaje("⏸️ Modo automático DESACTIVADO", "#FF3131");
-      }
-      actualizarEstadoAutomatico();
-    }
-
-    function actualizarEstadoAutomatico() {
-      const estadoAuto = document.getElementById('estado-automatico');
-      const botonAuto = document.getElementById('parar');
-      
-      if (modoAutomatico) {
-        estadoAuto.textContent = "AUTO: ON";
-        estadoAuto.style.color = "#39FF14";
-        estadoAuto.style.textShadow = "0 0 5px #39FF14, 0 0 10px #39FF14";
-        botonAuto.style.borderColor = "#39FF14";
-        botonAuto.style.boxShadow = "0 0 15px #39FF14";
-      } else {
-        estadoAuto.textContent = "AUTO: OFF";
-        estadoAuto.style.color = "#FF3131";
-        estadoAuto.style.textShadow = "0 0 5px #FF3131, 0 0 10px #FF3131";
-        botonAuto.style.borderColor = "#9d00ff";
-        botonAuto.style.boxShadow = "0 0 15px #9d00ff";
-      }
-    }
-
-    function startAutomatico() {
-      stopCommand();
-      activeCommand = 'automatico';
-      enviar('derecha');
-      autoInterval = setInterval(() => {
-        if (distanciaActual > 20) {
-          enviar('derecha');
-        } else {
-          enviar('parar');
-        }
-      }, commandDelay);
-    }
-
-    function stopAutomatico() {
-      clearInterval(autoInterval);
-      if (activeCommand === 'automatico') {
-        enviar('parar');
-        activeCommand = null;
       }
     }
 
@@ -156,37 +97,40 @@
         if (msg.startsWith("alerta:")) {
           const alerta = msg.substring(7);
           if (alerta === "obstaculo-critico") {
-            distanciaActual = 20;
-            obstaculoCercano = true;
-            mostrarMensaje("⛔ Obstáculo ≤20cm", "#ff0000", false);
+            mostrarMensaje("⛔ MOTORES APAGADOS - Obstáculo a ≤20cm", "#ff0000", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ff0000';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
             indicador.style.animation = 'parpadeo-rojo 1s infinite';
-            
-            // Solo detener si no es un comando de giro
-            if (activeCommand === 'adelante' || activeCommand === 'atras') {
-              stopCommand();
-            }
           } 
           else if (alerta === "obstaculo-muy-cercano") {
-            distanciaActual = 30;
-            obstaculoCercano = true;
-            mostrarMensaje("⚠️ Precaución (20-30cm)", "#ffaa00", false);
+            mostrarMensaje("⚠️ PELIGRO! (20-30cm) - Motores se apagarán", "#ff5555", false);
+            indicador.style.display = 'block';
+            indicador.style.backgroundColor = '#ff5555';
+            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 85, 85, 0.7)';
+            indicador.style.animation = 'parpadeo-naranja 1s infinite';
+          }
+          else if (alerta === "obstaculo-cercano") {
+            mostrarMensaje("⚠️ Precaución (30-40cm) - Gire", "#ffaa00", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ffaa00';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 170, 0, 0.7)';
             indicador.style.animation = 'parpadeo-amarillo 1s infinite';
           }
           else if (alerta === "zona-segura") {
-            distanciaActual = 100;
-            obstaculoCercano = false;
-            mostrarMensaje("✅ Zona segura", "#00ff00", true);
+            mostrarMensaje("✅ Zona segura - Sin obstáculos", "#00ff00", true);
             indicador.style.display = 'none';
           }
           else if (alerta.startsWith("distancia:")) {
-            distanciaActual = parseFloat(alerta.substring(10));
-            obstaculoCercano = distanciaActual <= 20;
+            const distancia = alerta.substring(10);
+            mostrarMensaje(`📏 Distancia: ${distancia} cm`, "#00a8ff", true);
+          }
+          else if (alerta === "error-sensor") {
+            mostrarMensaje("❌ Error en el sensor ultrasónico", "#ff00ff", false);
+            indicador.style.display = 'block';
+            indicador.style.backgroundColor = '#ff00ff';
+            indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 255, 0.7)';
+            indicador.style.animation = 'parpadeo-rojo 1s infinite';
           }
         }
       });
@@ -195,18 +139,7 @@
     }
 
     function startCommand(cmd) {
-      // Permitir siempre los comandos de giro (izquierda/derecha)
-      const esComandoGiro = (cmd === 'izquierda' || cmd === 'derecha');
-      
-      if (obstaculoCercano && !esComandoGiro) {
-        if (cmd === 'adelante' || cmd === 'atras') {
-          mostrarMensaje("⛔ No se puede avanzar/retroceder con obstáculo cercano", "#ff0000", true);
-          return;
-        }
-      }
-      
       if (activeCommand !== cmd) {
-        stopAutomatico();
         stopCommand();
         activeCommand = cmd;
         enviar(cmd);
@@ -217,7 +150,7 @@
     }
 
     function stopCommand() {
-      if (activeCommand && activeCommand !== 'automatico') {
+      if (activeCommand) {
         clearInterval(commandInterval);
         enviar('parar');
         activeCommand = null;
@@ -232,12 +165,7 @@
       lastCommandTime = now;
       
       if (client && client.connected) {
-        // Mapeo de comandos para coincidir con el firmware ESP
-        let comandoEnviar = cmd;
-        if (cmd === 'adelante') comandoEnviar = 'derecha';
-        else if (cmd === 'derecha') comandoEnviar = 'adelante';
-        
-        client.publish('mundial/2014.0-7', 'comando:' + comandoEnviar, {qos: 0, retain: false});
+        client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
         if (cmd !== 'parar') {
           mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
         }
@@ -248,24 +176,21 @@
 
     function setupButtonEvents() {
       const buttons = {
-        'adelante': 'derecha',  // Mapeo invertido para coincidir con el firmware
-        'izquierda': 'atras',
-        'derecha': 'adelante'
+        'adelante': 'adelante',
+        'atras': 'atras',
+        'izquierda': 'izquierda',
+        'derecha': 'derecha'
       };
 
       for (const [id, cmd] of Object.entries(buttons)) {
         const btn = document.getElementById(id);
         
-        btn.addEventListener('mousedown', () => {
-          stopAutomatico();
-          startCommand(cmd);
-        });
+        btn.addEventListener('mousedown', () => startCommand(cmd));
         btn.addEventListener('mouseup', stopCommand);
         btn.addEventListener('mouseleave', stopCommand);
         
         btn.addEventListener('touchstart', (e) => {
           e.preventDefault();
-          stopAutomatico();
           startCommand(cmd);
         });
         btn.addEventListener('touchend', (e) => {
@@ -274,16 +199,16 @@
         });
       }
 
-      const btnAuto = document.getElementById('parar');
-      btnAuto.addEventListener('click', (e) => {
-        e.preventDefault();
-        toggleAutomatico();
+      document.getElementById('parar').addEventListener('click', () => {
+        stopCommand();
+        enviar('parar');
       });
     }
 
     function mostrarMensaje(texto, color, fadeOut = true) {
       const messageContainer = document.getElementById('message-container');
       
+      // Limpiar mensajes similares existentes
       const mensajesActuales = messageContainer.querySelectorAll('.message');
       mensajesActuales.forEach(msg => {
         if (msg.textContent.includes(texto.substring(0, 20))) {
@@ -312,7 +237,6 @@
     }
   </script>
   <style>
-    /* Todos los estilos se mantienen exactamente igual */
     body {
       background: linear-gradient(135deg, #1e3c72 0%, #89216b 100%);
       display: flex;
@@ -380,15 +304,6 @@
       font-weight: bold;
     }
     
-    #estado-automatico {
-      position: fixed;
-      top: 10px;
-      right: 180px;
-      font-size: 16px;
-      font-weight: bold;
-      z-index: 999;
-    }
-    
     .conectado-neon {
       color: #39FF14;
       text-shadow: 0 0 5px #39FF14, 0 0 10px #39FF14;
@@ -447,13 +362,14 @@
     #adelante  { top: 150px; left: 355px; }
     #izquierda { top: 275px; left: 240px; }
     #parar     { 
-      top: 400px; 
+      top: 275px; 
       left: 355px; 
       border-color: #9d00ff;
       box-shadow: 0 0 15px #9d00ff;
       color: #ff8c00;
     }
     #derecha   { top: 275px; left: 470px; }
+    #atras     { top: 400px; left: 355px; }
 
     .balon {
       display: inline-block;
@@ -493,6 +409,12 @@
     }
     .balon.derecha:after {
       transform: rotate(90deg);
+    }
+    .balon.atras:after {
+      transform: rotate(135deg);
+    }
+    .balon.atras:before {
+      transform: rotate(135deg);
     }
     .balon.parar {
       background-color: #ff0000;
@@ -566,13 +488,14 @@
     .label.adelante  { top: 260px; left: 355px; width: 80px; }
     .label.izquierda { top: 375px; left: 240px; width: 80px; }
     .label.parar     { 
-      top: 515px; 
+      top: 375px; 
       left: 355px; 
       width: 80px; 
       color: #ff8c00;
       text-shadow: 0 0 5px #ff8c00, 0 0 10px #9d00ff;
     }
     .label.derecha   { top: 375px; left: 470px; width: 80px; }
+    .label.atras     { top: 515px; left: 355px; width: 80px; }
     
     #indicador-obstaculo {
       position: absolute;
@@ -674,15 +597,14 @@
       letter-spacing: 2px;
     }
   </style>
-</head>
+<script src="./Copa América 2014_files/mqtt.min.js.descargar"></script></head>
 <body>
   <div id="estado-conexion">
-    <div id="estado-automatico">AUTO: OFF</div>
-    <div id="estado-mqtt" class="desconectado-neon">📡</div>
-    <div id="texto-estado" class="desconectado-neon">Desconectado</div>
+    <div id="estado-mqtt" class="conectado-neon">📶</div>
+    <div id="texto-estado" class="conectado-neon">Conectado</div>
   </div>
 
-  <div id="passwordModal">
+  <div id="passwordModal" style="display: none;">
     <div class="modal-content">
       <h3>🔒 Ingresa la contraseña para acceder</h3>
       <input type="password" id="passwordInput" onkeypress="permitirEnter(event)" placeholder="Contraseña">
@@ -692,19 +614,23 @@
 
   <h2>COPA AMÉRICA 2014</h2>
 
-  <div id="control" class="control">
-    <div id="indicador-obstaculo"></div>
-    <div id="message-container"></div>
+  <div id="control" class="control" style="display: block;">
+    <div id="indicador-obstaculo" style="display: none; background-color: rgb(255, 0, 0); box-shadow: rgba(255, 0, 0, 0.7) 0px 0px 10px 5px; animation: 1s ease 0s infinite normal none running parpadeo-rojo;"></div>
+    <div id="message-container"><div class="message" style="color: rgb(0, 255, 0); background-color: rgba(0, 255, 0, 0.125);">✅ Zona segura - Sin obstáculos</div><div class="message" style="color: rgb(0, 168, 255); background-color: rgba(0, 168, 255, 0.125);">📏 Distancia: 53.9 cm</div></div>
 
-    <button id="adelante" onmousedown="startCommand('derecha')" onmouseup="stopCommand()" ontouchstart="startCommand('derecha')" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
-    <button id="izquierda" onmousedown="startCommand('atras')" onmouseup="stopCommand()" ontouchstart="startCommand('atras')" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
-    <button id="derecha" onmousedown="startCommand('adelante')" onmouseup="stopCommand()" ontouchstart="startCommand('adelante')" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
-    <button id="parar" onclick="toggleAutomatico()"><div class="balon parar"></div></button>
+    <button id="adelante" onmousedown="startCommand(&#39;adelante&#39;)" onmouseup="stopCommand()" ontouchstart="startCommand(&#39;adelante&#39;)" ontouchend="stopCommand()"><div class="balon adelante"></div></button>
+    <button id="izquierda" onmousedown="startCommand(&#39;izquierda&#39;)" onmouseup="stopCommand()" ontouchstart="startCommand(&#39;izquierda&#39;)" ontouchend="stopCommand()"><div class="balon izquierda"></div></button>
+    <button id="parar" onclick="stopCommand()"><div class="balon parar"></div></button>
+    <button id="derecha" onmousedown="startCommand(&#39;derecha&#39;)" onmouseup="stopCommand()" ontouchstart="startCommand(&#39;derecha&#39;)" ontouchend="stopCommand()"><div class="balon derecha"></div></button>
+    <button id="atras" onmousedown="startCommand(&#39;atras&#39;)" onmouseup="stopCommand()" ontouchstart="startCommand(&#39;atras&#39;)" ontouchend="stopCommand()"><div class="balon atras"></div></button>
 
     <div class="label adelante">ADELANTE</div>
     <div class="label izquierda">IZQUIERDA</div>
+    <div class="label parar">PARAR</div>
     <div class="label derecha">DERECHA</div>
-    <div class="label parar">AUTO/MANUAL</div>
+    <div class="label atras">ATRÁS</div>
   </div>
+
+
 </body>
-</html>  
+</html>
