@@ -53,7 +53,6 @@
     }
 
     function toggleAutomatico() {
-      // Detener cualquier comando activo primero
       stopCommand();
       
       modoAutomatico = !modoAutomatico;
@@ -159,14 +158,14 @@
           if (alerta === "obstaculo-critico") {
             distanciaActual = 20;
             obstaculoCercano = true;
-            mostrarMensaje("⛔ Obstáculo ≤20cm - Girar permitido", "#ff0000", false);
+            mostrarMensaje("⛔ Obstáculo ≤20cm", "#ff0000", false);
             indicador.style.display = 'block';
             indicador.style.backgroundColor = '#ff0000';
             indicador.style.boxShadow = '0 0 10px 5px rgba(255, 0, 0, 0.7)';
             indicador.style.animation = 'parpadeo-rojo 1s infinite';
             
-            if (activeCommand === 'adelante' || activeCommand === 'derecha' || 
-                activeCommand === 'atras' || activeCommand === 'izquierda') {
+            // Solo detener si no es un comando de giro
+            if (activeCommand === 'adelante' || activeCommand === 'atras') {
               stopCommand();
             }
           } 
@@ -182,7 +181,7 @@
           else if (alerta === "zona-segura") {
             distanciaActual = 100;
             obstaculoCercano = false;
-            mostrarMensaje("✅ Zona segura - Avanzando", "#00ff00", true);
+            mostrarMensaje("✅ Zona segura", "#00ff00", true);
             indicador.style.display = 'none';
           }
           else if (alerta.startsWith("distancia:")) {
@@ -196,8 +195,11 @@
     }
 
     function startCommand(cmd) {
-      if (obstaculoCercano) {
-        if (cmd !== 'adelante' && cmd !== 'atras') {
+      // Permitir siempre los comandos de giro (izquierda/derecha)
+      const esComandoGiro = (cmd === 'izquierda' || cmd === 'derecha');
+      
+      if (obstaculoCercano && !esComandoGiro) {
+        if (cmd === 'adelante' || cmd === 'atras') {
           mostrarMensaje("⛔ No se puede avanzar/retroceder con obstáculo cercano", "#ff0000", true);
           return;
         }
@@ -230,11 +232,14 @@
       lastCommandTime = now;
       
       if (client && client.connected) {
-        client.publish('mundial/2014.0-7', 'comando:' + cmd, {qos: 0, retain: false});
+        // Mapeo de comandos para coincidir con el firmware ESP
+        let comandoEnviar = cmd;
+        if (cmd === 'adelante') comandoEnviar = 'derecha';
+        else if (cmd === 'derecha') comandoEnviar = 'adelante';
+        
+        client.publish('mundial/2014.0-7', 'comando:' + comandoEnviar, {qos: 0, retain: false});
         if (cmd !== 'parar') {
-          const mensajeMostrado = cmd === 'adelante' ? 'derecha' : 
-                                cmd === 'derecha' ? 'adelante' : cmd;
-          mostrarMensaje('📤 Enviado: ' + mensajeMostrado, "#00ff88");
+          mostrarMensaje('📤 Enviado: ' + cmd, "#00ff88");
         }
       } else {
         mostrarMensaje('⚠️ Cliente no conectado', "#ff4444", false);
@@ -243,7 +248,7 @@
 
     function setupButtonEvents() {
       const buttons = {
-        'adelante': 'derecha',
+        'adelante': 'derecha',  // Mapeo invertido para coincidir con el firmware
         'izquierda': 'atras',
         'derecha': 'adelante'
       };
@@ -274,9 +279,6 @@
         e.preventDefault();
         toggleAutomatico();
       });
-      
-      btnAuto.removeEventListener('mouseup', stopCommand);
-      btnAuto.removeEventListener('mouseleave', stopCommand);
     }
 
     function mostrarMensaje(texto, color, fadeOut = true) {
